@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สแกน QR - โรงเรียนเซกา</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Sarabun',sans-serif}
+body{background:linear-gradient(135deg,#FFF9C4,#BBDEFB);min-height:100vh;padding:14px}
+.box{background:#fff;border-radius:18px;padding:20px;max-width:460px;margin:0 auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+h3{color:#1565C0;text-align:center;margin-bottom:14px;font-size:19px}
+.sub{text-align:center;color:#F9A825;font-weight:bold;font-size:13px;margin-bottom:16px}
+label{display:block;font-size:13px;color:#555;margin-bottom:6px}
+input{width:100%;padding:13px;border:2px solid #E3F2FD;border-radius:12px;font-size:16px;background:#FAFAFA;margin-bottom:12px}
+input:focus{border-color:#64B5F6;background:#fff;outline:none}
+button{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;margin-top:8px}
+.start{background:linear-gradient(135deg,#42A5F5,#1565C0);color:#fff}
+.go{background:linear-gradient(135deg,#66BB6A,#2E7D32);color:#fff}
+.stop{background:#FFEBEE;color:#E53935}
+.ghost{background:#E3F2FD;color:#1565C0}
+#reader{width:100%;border-radius:14px;overflow:hidden;margin:12px 0}
+#reader video{width:100%!important;border-radius:14px}
+#reader img[alt="Info icon"]{display:none}
+.msg{font-size:13px;color:#555;text-align:center;margin:10px 0;min-height:20px}
+.result{border:2px solid #E0E0E0;border-radius:14px;padding:14px;margin-top:12px;font-size:14px;line-height:1.8}
+.ok{border-color:#A5D6A7;background:#F1F8E9}
+.warn{border-color:#FFCC80;background:#FFF8E1}
+.bad{border-color:#EF9A9A;background:#FFEBEE;color:#C62828;text-align:center}
+.name{font-size:16px;font-weight:bold;color:#1565C0}
+.top{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #FFF3B0;padding-bottom:10px;margin-bottom:14px;font-size:14px}
+.logout{background:#FFEBEE;color:#E53935;padding:7px 12px;border-radius:10px;font-size:12px;width:auto;margin:0;border:none;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+th,td{border:1px solid #E0E0E0;padding:7px;text-align:left}
+th{background:#FFF9C4}
+.late{background:#FFEBEE;color:#C62828;font-weight:bold}
+.hint{font-size:12px;color:#888;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+
+<!-- ===== หน้า Login ===== -->
+<div class="box" id="loginBox">
+  <h3>📷 สแกน QR ใบอนุญาต</h3>
+  <p class="sub">โรงเรียนเซกา จังหวัดบึงกาฬ</p>
+  <label>ชื่อผู้ใช้ (ยาม/รปภ.)</label>
+  <input type="text" id="u" inputmode="numeric" placeholder="เช่น 1005">
+  <label>รหัสผ่าน</label>
+  <input type="password" id="p" placeholder="รหัสผ่าน"
+         onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="start" onclick="doLogin()">เข้าสู่ระบบ</button>
+  <p class="msg" id="loginMsg"></p>
+</div>
+
+<!-- ===== หน้าสแกน ===== -->
+<div class="box" id="mainBox" style="display:none">
+  <div class="top">
+    <span id="who"></span>
+    <button class="logout" onclick="doLogout()">ออก</button>
+  </div>
+
+  <div id="reader"></div>
+  <p class="msg" id="msg">กด "เปิดกล้อง" เพื่อเริ่มสแกน</p>
+
+  <button class="start" id="btnStart" onclick="startCam()">📷 เปิดกล้อง</button>
+  <button class="stop" id="btnStop" style="display:none" onclick="stopCam()">ปิดกล้อง</button>
+
+  <input type="text" id="manual" placeholder="หรือพิมพ์รหัสใต้ QR" style="margin-top:14px"
+         onkeydown="if(event.key==='Enter')lookup(this.value.trim())">
+  <button class="ghost" onclick="lookup(document.getElementById('manual').value.trim())">🔍 ตรวจสอบ</button>
+
+  <div id="result"></div>
+
+  <h3 style="margin-top:22px;font-size:16px">🚶 ยังอยู่นอกบริเวณ</h3>
+  <button class="ghost" onclick="loadOut()">🔄 รีเฟรช</button>
+  <div id="outList"></div>
+</div>
+
+<script>
+/* ========== ⚠️ แก้ 2 บรรทัดนี้ ========== */
+var API_URL = 'https://script.google.com/macros/s/AKfycbyEoXZ5cO0hgl9D3pnqW1eu0lxby0OSAh62MjvwBIGa_9Y7pgl4C-Zl1JPzsP56qpsFMg/exec';
+var SECRET  = 'seka2569xyz';
+/* ======================================= */
+
+var guard = null, scanner = null, found = null, lastText = '', lastTime = 0;
+
+window.onload = function(){
+  var s = localStorage.getItem('guardUser');
+  if (s) { guard = JSON.parse(s); showMain(); }
+};
+
+function api(payload, cb, errCb){
+  payload.secret = SECRET;
+  fetch(API_URL, {
+    method:'POST',
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.json(); })
+  .then(cb)
+  .catch(function(e){ if(errCb) errCb(e); else alert('❌ เชื่อมต่อไม่ได้: '+e); });
+}
+
+function doLogin(){
+  var u = document.getElementById('u').value.trim();
+  var p = document.getElementById('p').value.trim();
+  var m = document.getElementById('loginMsg');
+  if(!u||!p){ m.innerText='กรุณากรอกให้ครบ'; m.style.color='#E53935'; return; }
+  m.innerText='⏳ กำลังตรวจสอบ...'; m.style.color='#666';
+
+  api({action:'login', username:u, password:p}, function(res){
+    if(!res.success){ m.innerText=res.message; m.style.color='#E53935'; return; }
+    guard = res;
+    localStorage.setItem('guardUser', JSON.stringify(res));
+    showMain();
+  }, function(e){ m.innerText='❌ '+e; m.style.color='#E53935'; });
+}
+
+function showMain(){
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('mainBox').style.display='block';
+  document.getElementById('who').innerText='👤 '+guard.fullName;
+  loadOut();
+}
+
+function doLogout(){
+  stopCam();
+  localStorage.removeItem('guardUser');
+  guard=null;
+  document.getElementById('mainBox').style.display='none';
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('p').value='';
+  document.getElementById('loginMsg').innerText='';
+}
+
+function startCam(){
+  document.getElementById('btnStart').style.display='none';
+  document.getElementById('btnStop').style.display='block';
+  document.getElementById('msg').innerText='⏳ กำลังเปิดกล้อง...';
+
+  scanner = new Html5Qrcode('reader');
+  scanner.start({facingMode:'environment'},
+    {fps:10, qrbox:{width:230,height:230}}, onScan, function(){})
+    .then(function(){ document.getElementById('msg').innerText='📷 เล็ง QR ให้อยู่ในกรอบ'; })
+    .catch(function(e){
+      document.getElementById('msg').innerHTML='<span style="color:#E53935">❌ '+e+'</span>';
+      stopCam();
+    });
+}
+
+function stopCam(){
+  document.getElementById('btnStart').style.display='block';
+  document.getElementById('btnStop').style.display='none';
+  if(!scanner) return;
+  scanner.stop().then(function(){ scanner.clear(); scanner=null; }).catch(function(){ scanner=null; });
+}
+
+function onScan(text){
+  var now = Date.now();
+  if(text===lastText && now-lastTime<3000) return;
+  lastText=text; lastTime=now;
+  if(navigator.vibrate) navigator.vibrate(120);
+  lookup(text);
+}
+
+function lookup(token){
+  if(!token) return;
+  document.getElementById('result').innerHTML='<div class="result">⏳ กำลังตรวจสอบ...</div>';
+
+  api({action:'lookup', token:token}, function(r){
+    if(!r.success){
+      document.getElementById('result').innerHTML='<div class="result bad">'+r.message+'</div>';
+      found=null; return;
+    }
+    found=r;
+    var btn='';
+    if(r.action==='leave') btn='<button class="go" onclick="doScan(\'leave\')">🚶 บันทึกเวลาออก</button>';
+    if(r.action==='return') btn='<button class="go" onclick="doScan(\'return\')">✅ บันทึกเวลากลับ</button>';
+
+    document.getElementById('result').innerHTML=
+      '<div class="result '+(r.action?'ok':'warn')+'">'+
+        '<div class="name">'+r.studentName+' — '+r.classRoom+'</div>'+
+        '<div>📄 '+r.requestId+'</div>'+
+        '<div>📝 '+r.reasonText+'</div>'+
+        (r.destination?'<div>📍 '+r.destination+'</div>':'')+
+        '<div>🕐 ออก '+r.planLeaveTime+' น. | กลับ '+r.planReturnTime+'</div>'+
+        (r.pickupName?'<div>👤 '+r.pickupName+' '+(r.pickupPhone||'')+'</div>':'')+
+        (r.companions.length?'<div>👥 '+r.companions.join(', ')+'</div>':'')+
+        (r.actualLeave?'<div>⏱️ ออกจริง '+r.actualLeave+'</div>':'')+
+        '<div style="margin-top:6px;font-weight:bold">'+r.note+'</div>'+
+        btn+
+      '</div>';
+  });
+}
+
+function doScan(type){
+  if(!found) return;
+  if(!confirm(type==='leave'?'ยืนยันบันทึกเวลาออก?':'ยืนยันบันทึกเวลากลับ?')) return;
+
+  api({action:'scan', rowIndex:found.rowIndex, scanType:type, guardName:guard.fullName}, function(res){
+    alert(res.message);
+    document.getElementById('result').innerHTML='';
+    document.getElementById('manual').value='';
+    found=null; lastText='';
+    document.getElementById('msg').innerText = scanner?'📷 พร้อมสแกนคนถัดไป':'';
+    loadOut();
+  });
+}
+
+function loadOut(){
+  var box=document.getElementById('outList');
+  box.innerHTML='<p class="hint">⏳ กำลังโหลด...</p>';
+  api({action:'currentlyOut'}, function(res){
+    var list = res.list || [];
+    if(!list.length){ box.innerHTML='<p class="hint">✅ ไม่มีนักเรียนอยู่นอกบริเวณ</p>'; return; }
+    var h='<table><tr><th>ชื่อ</th><th>ห้อง</th><th>ออกเมื่อ</th><th>นัดกลับ</th></tr>';
+    list.forEach(function(r){
+      h+='<tr'+(r.late?' class="late"':'')+'><td>'+r.studentName+(r.late?' ⚠️':'')+'</td>'+
+         '<td>'+r.classRoom+'</td><td>'+r.actualLeave+'</td><td>'+r.planReturnTime+'</td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+  });
+}
+</script>
+</body>
+</html>
