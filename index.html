@@ -183,7 +183,9 @@ function lookup(token){
         '<div>📝 '+r.reasonText+'</div>'+
         (r.destination?'<div>📍 '+r.destination+'</div>':'')+
         '<div>🕐 ออก '+r.planLeaveTime+' น. | กลับ '+r.planReturnTime+'</div>'+
-        (r.pickupName?'<div>👤 '+r.pickupName+' '+(r.pickupPhone||'')+'</div>':'')+
+                (r.extra&&r.extra.studentPhone?'<div>📱 นักเรียน <a href="tel:'+r.extra.studentPhone+'">'+r.extra.studentPhone+'</a></div>':'')+
+        (r.extra&&r.extra.travelMethod?'<div>🚗 '+r.extra.travelMethod+(r.extra.travelDetail?' <b>('+r.extra.travelDetail+')</b>':'')+'</div>':'')+
+        (r.extra&&r.extra.pickupName?'<div>👤 ผู้มารับ '+r.extra.pickupName+(r.extra.pickupRelation?' ('+r.extra.pickupRelation+')':'')+(r.extra.pickupPhone?' โทร <a href="tel:'+r.extra.pickupPhone+'">'+r.extra.pickupPhone+'</a>':'')+'</div>':'')+
         (r.companions.length?'<div>👥 '+r.companions.join(', ')+'</div>':'')+
         (r.actualLeave?'<div>⏱️ ออกจริง '+r.actualLeave+'</div>':'')+
         '<div style="margin-top:6px;font-weight:bold">'+r.note+'</div>'+
