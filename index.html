@@ -32,6 +32,7 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 .b-soft{background:var(--pri-l);color:var(--pri-d)}
 .b-stop{background:var(--bad-l);color:var(--bad)}
 .b-gray{background:#ECEFF1;color:#546E7A}
+.b-force{background:linear-gradient(135deg,#FFB74D,#E65100);color:#fff;box-shadow:0 6px 16px rgba(230,81,0,.3)}
 .big{min-height:70px;font-size:21px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--yel);
  border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:600;color:var(--pri-d)}
@@ -291,9 +292,14 @@ function lookup(token){
 function renderFound(r){
   var x = r.extra || {};
   var sid = x.studentId || r.studentId || '';
+  var tw = r.timeWarn;
   var banner, btn;
 
-  if (r.action === 'leave') {
+  if (r.action === 'leave' && tw) {
+    banner = '<div class="banner bn-warn"><div class="ico">⏰</div><div class="t">' + esc(tw.why) + '</div>' +
+             '<div class="s">' + esc(tw.note) + '</div></div>';
+    btn = '<button class="btn b-force big" id="btnDo" onclick="doScan(\'leave\',\'' + esc(tw.why) + '\')">⚠️ บันทึกทั้งที่' + esc(tw.why) + '</button>';
+  } else if (r.action === 'leave') {
     banner = '<div class="banner bn-leave"><div class="ico">🚶</div><div class="t">อนุญาตให้ออก</div><div class="s">' + esc(r.note || '') + '</div></div>';
     btn = '<button class="btn b-ok big" id="btnDo" onclick="doScan(\'leave\')">✅ ยืนยันบันทึกเวลาออก</button>';
   } else if (r.action === 'return') {
@@ -327,12 +333,14 @@ function renderFound(r){
     '<button class="btn b-gray" onclick="closeSheet()">' + (btn ? '✕ ยกเลิก' : '📷 สแกนคนถัดไป') + '</button>');
 }
 
-function doScan(type){
+function doScan(type, force){
   if (!found) return;
+  if (force && !confirm('⚠️ อยู่นอกช่วงเวลาที่อนุญาต (' + force + ')\n\nระบบจะบันทึกหมายเหตุและชื่อของท่านไว้\nยืนยันบันทึกหรือไม่?')) return;
+
   var b = document.getElementById('btnDo');
   if (b) { b.disabled = true; b.innerHTML = '⏳ กำลังบันทึก...'; }
 
-  api({action:'scan', rowIndex:found.rowIndex, scanType:type}, function(res){
+  api({action:'scan', rowIndex:found.rowIndex, scanType:type, force:force || ''}, function(res){
     if (!res) return;
     if (!res.success) {
       if (b) { b.disabled = false; b.innerHTML = '🔁 ลองบันทึกอีกครั้ง'; }
