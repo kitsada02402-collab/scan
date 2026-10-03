@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>สแกน QR ใบอนุญาต - โรงเรียนเซกา</title>
+<title>จุดตรวจประตู - โรงเรียนเซกา</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
@@ -45,10 +45,13 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 .or:before,.or:after{content:'';flex:1;height:1px;background:#CFD8DC}
 .sec-h{color:var(--pri-d);font-size:18px;display:flex;justify-content:space-between;align-items:center}
 .sec-h button{width:auto;min-height:40px;margin:0;padding:6px 14px;font-size:14px}
-.out-item{border:2px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:10px;font-size:15px}
+.out-item{border:2px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:10px;font-size:15px;cursor:pointer;background:#fff}
+.out-item:active{background:var(--pri-l)}
 .out-item.late{border-color:#EF9A9A;background:var(--bad-l)}
 .out-item b{color:var(--pri-d)}.out-item.late b{color:#C62828}
+.tap{font-size:12px;color:var(--pri);text-align:right;margin-top:2px}
 .tag{display:inline-block;background:var(--pri-l);color:var(--pri-d);border-radius:999px;padding:1px 10px;font-size:13px;font-weight:700}
+.etag{display:inline-block;background:var(--bad-l);color:#C62828;border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700}
 .sub{font-size:13px;color:var(--mut);margin-top:2px}
 .empty{text-align:center;color:var(--mut);padding:18px;border:2px dashed var(--line);border-radius:14px;margin-top:10px}
 .err{color:var(--bad);text-align:center;font-size:14px;margin-top:10px;min-height:18px}
@@ -67,6 +70,7 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 .bn-warn{background:var(--warn-l);color:var(--warn);border:2px solid #FFCC80}
 .bn-bad{background:var(--bad-l);color:#C62828;border:2px solid #EF9A9A}
 .bn-done{background:var(--ok-l);color:var(--ok);border:2px solid #A5D6A7}
+.idcheck{background:#FFF8E1;border:2px dashed #FFB300;color:#6D4C41;border-radius:14px;padding:10px 12px;font-weight:700;text-align:center;margin-bottom:12px}
 .who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .who .nm{font-family:'Prompt','Sarabun';font-size:21px;font-weight:700;color:#263238}
 .sid{background:var(--yel);color:#6D4C41;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700}
@@ -80,14 +84,15 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 <body>
 
 <header class="hero">
-  <h1>📷 สแกน QR ใบอนุญาตออกนอกบริเวณ</h1>
+  <h1>🚪 จุดตรวจประตู — บันทึกเข้า-ออก</h1>
   <p>โรงเรียนเซกา จังหวัดบึงกาฬ</p>
 </header>
 
 <div class="wrap">
 
   <div class="card" id="loginBox">
-    <h2 style="color:var(--pri-d);font-size:22px;margin-bottom:14px;">เข้าสู่ระบบ (ยาม/รปภ.)</h2>
+    <h2 style="color:var(--pri-d);font-size:22px;margin-bottom:4px;">เข้าสู่ระบบ</h2>
+    <p class="sub" style="margin-bottom:14px;">สำหรับ ยาม/รปภ. • ครูงานกิจการนักเรียน • หัวหน้างานกิจการนักเรียน</p>
     <label>เลขประจำตัวประชาชน</label>
     <input type="text" id="u" inputmode="numeric" placeholder="เลขประจำตัวประชาชน 13 หลัก">
     <label>รหัสผ่าน</label>
@@ -109,16 +114,23 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
       <button class="btn b-pri big" id="btnStart" onclick="startCam()">📷 เปิดกล้องสแกน</button>
       <button class="btn b-stop" id="btnStop" style="display:none" onclick="stopCam()">ปิดกล้อง</button>
 
-      <div class="or">หรือพิมพ์รหัสใต้ QR</div>
-      <input type="text" id="manual" placeholder="พิมพ์รหัสใต้ QR" style="margin-bottom:0"
+      <div class="or">หรือพิมพ์ค้นหา (นักเรียนไม่มีโทรศัพท์)</div>
+      <input type="text" id="manual" placeholder="รหัสใต้ QR / รหัสนักเรียน / ชื่อ" style="margin-bottom:0"
              onkeydown="if(event.key==='Enter')manualLookup()">
-      <button class="btn b-soft" onclick="manualLookup()">🔍 ตรวจสอบ</button>
+      <button class="btn b-soft" onclick="manualLookup()">🔍 ค้นหา</button>
+    </div>
+
+    <div class="card">
+      <div class="sec-h">
+        <span>📋 รอบันทึกออก <span class="tag" id="readyCount">0</span></span>
+        <button class="btn b-soft" onclick="loadLists()">🔄</button>
+      </div>
+      <div id="readyList"></div>
     </div>
 
     <div class="card">
       <div class="sec-h">
         <span>🚶 ยังอยู่นอกบริเวณ <span class="tag" id="outCount">0</span></span>
-        <button class="btn b-soft" onclick="loadOut()">🔄 รีเฟรช</button>
       </div>
       <div id="outList"></div>
     </div>
@@ -136,6 +148,7 @@ var SECRET  = 'seka2569xyz';
 /* ======================================================= */
 
 var guard = null, scanner = null, found = null, busy = false, outTimer = null;
+var lists = { ready: [], out: [], pick: [] };
 
 function esc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -168,13 +181,13 @@ function api(payload, cb, errCb){
     .catch(function(e){ if (errCb) errCb(e); });
 }
 
+/* ---------- Login ---------- */
 function doLogin(){
   var u = document.getElementById('u').value.trim();
   var p = document.getElementById('p').value.trim();
   var m = document.getElementById('loginMsg');
   if (!u || !p) { m.innerText = 'กรุณากรอกให้ครบ'; return; }
   m.style.color = '#78909C'; m.innerText = '⏳ กำลังตรวจสอบ...';
-
   api({action:'login', username:u, password:p}, function(res){
     if (!res.success) { m.style.color = '#E53935'; m.innerText = res.message; return; }
     guard = res;
@@ -187,9 +200,9 @@ function showMain(){
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('mainBox').style.display = 'block';
   document.getElementById('who').innerText = '👤 ' + guard.fullName;
-  loadOut();
+  loadLists();
   if (outTimer) clearInterval(outTimer);
-  outTimer = setInterval(loadOut, 60000);
+  outTimer = setInterval(function(){ if (!busy) loadLists(); }, 60000);
 }
 
 function doLogout(){
@@ -203,11 +216,11 @@ function doLogout(){
   document.getElementById('loginMsg').innerText = '';
 }
 
+/* ---------- กล้อง ---------- */
 function startCam(){
   document.getElementById('btnStart').style.display = 'none';
   document.getElementById('btnStop').style.display = 'flex';
   setCamMsg('⏳ กำลังเปิดกล้อง...');
-
   scanner = new Html5Qrcode('reader');
   scanner.start({ facingMode:'environment' },
     { fps:10, qrbox:function(w,h){ var s = Math.floor(Math.min(w,h) * 0.7); return { width:s, height:s }; } },
@@ -248,14 +261,45 @@ function onScan(text){
   lookup(text);
 }
 
+/* ---------- ค้นหาด้วยพิมพ์ ---------- */
 function manualLookup(){
   var t = document.getElementById('manual').value.trim();
   if (!t || busy) return;
+  if (t.length < 2) { alert('พิมพ์อย่างน้อย 2 ตัวอักษร'); return; }
   busy = true;
   pauseCam();
-  lookup(t);
+  if (/^REQ\d+-/i.test(t)) lookup(t);
+  else findStudent(t);
 }
 
+function findStudent(q){
+  openSheet('<div class="spin"></div><p style="text-align:center;color:#78909C;">กำลังค้นหา "' + esc(q) + '"...</p>');
+  api({action:'find', q:q}, function(res){
+    var list = (res && res.list) || [];
+    lists.pick = list;
+    if (!list.length) {
+      openSheet('<div class="banner bn-bad"><div class="ico">🔍</div><div class="t">ไม่พบ</div>' +
+        '<div class="s">ไม่พบคำขอที่อนุมัติแล้วของ "' + esc(q) + '"</div></div>' +
+        '<button class="btn b-pri big" onclick="closeSheet()">ปิด</button>');
+      return;
+    }
+    if (list.length === 1) { openFound(list[0], true); return; }
+    var h = '<h3 style="color:var(--pri-d);margin-bottom:6px;">พบ ' + list.length + ' รายการ — แตะเพื่อเลือก</h3>';
+    list.forEach(function(r, i){
+      h += '<div class="out-item" onclick="openFound(lists.pick[' + i + '],true)">' +
+        '<b>' + esc(r.studentName) + '</b> <span class="tag">' + esc(r.classRoom) + '</span>' +
+        (r.emergency ? ' <span class="etag">🆘 ฉุกเฉิน</span>' : '') +
+        '<div class="sub">รหัส ' + esc(r.studentId) + ' | ' + esc(r.note) + ' | ขอออก ' + esc(r.planLeaveTime) + ' น.</div></div>';
+    });
+    h += '<button class="btn b-gray" onclick="closeSheet()">✕ ยกเลิก</button>';
+    openSheet(h);
+  }, function(e){
+    openSheet('<div class="banner bn-bad"><div class="ico">📡</div><div class="t">เชื่อมต่อไม่ได้</div><div class="s">' + esc(e) + '</div></div>' +
+      '<button class="btn b-pri big" onclick="closeSheet()">ลองใหม่</button>');
+  });
+}
+
+/* ---------- หน้าต่างผล ---------- */
 function openSheet(html){
   document.getElementById('sheetBody').innerHTML = html;
   document.getElementById('sheetBg').classList.add('show');
@@ -281,12 +325,26 @@ function lookup(token){
         '<button class="btn b-pri big" onclick="closeSheet()">📷 สแกนใหม่</button>');
       return;
     }
-    found = r;
-    renderFound(r);
+    openFound(r, false);
   }, function(e){
     openSheet('<div class="banner bn-bad"><div class="ico">📡</div><div class="t">เชื่อมต่อไม่ได้</div><div class="s">' + esc(e) + '</div></div>' +
       '<button class="btn b-pri big" onclick="closeSheet()">ลองใหม่</button>');
   });
+}
+
+function openFromList(kind, i){
+  if (busy) return;
+  var r = lists[kind][i];
+  if (!r) return;
+  busy = true;
+  pauseCam();
+  openFound(r, true);
+}
+
+function openFound(r, bySearch){
+  found = r;
+  found._bySearch = !!bySearch;
+  renderFound(found);
 }
 
 function renderFound(r){
@@ -296,8 +354,7 @@ function renderFound(r){
   var banner, btn;
 
   if (r.action === 'leave' && tw) {
-    banner = '<div class="banner bn-warn"><div class="ico">⏰</div><div class="t">' + esc(tw.why) + '</div>' +
-             '<div class="s">' + esc(tw.note) + '</div></div>';
+    banner = '<div class="banner bn-warn"><div class="ico">⏰</div><div class="t">' + esc(tw.why) + '</div><div class="s">' + esc(tw.note) + '</div></div>';
     btn = '<button class="btn b-force big" id="btnDo" onclick="doScan(\'leave\',\'' + esc(tw.why) + '\')">⚠️ บันทึกทั้งที่' + esc(tw.why) + '</button>';
   } else if (r.action === 'leave') {
     banner = '<div class="banner bn-leave"><div class="ico">🚶</div><div class="t">อนุญาตให้ออก</div><div class="s">' + esc(r.note || '') + '</div></div>';
@@ -321,14 +378,16 @@ function renderFound(r){
     (x.pickupName ? '<div>👤 ผู้มารับ ' + esc(x.pickupName) + (x.pickupRelation ? ' (' + esc(x.pickupRelation) + ')' : '') +
        (x.pickupPhone ? ' <a href="tel:' + esc(x.pickupPhone) + '">' + esc(x.pickupPhone) + '</a>' : '') + '</div>' : '') +
     (x.studentPhone ? '<div>📱 นักเรียน <a href="tel:' + esc(x.studentPhone) + '">' + esc(x.studentPhone) + '</a></div>' : '') +
-    (r.companions && r.companions.length ? '<div>👥 ' + r.companions.map(esc).join(', ') + '</div>' : '') +
+    (r.companions && r.companions.length ? '<div>👥 ' + r.companions.map(function(c){ return esc(c); }).join(', ') + '</div>' : '') +
     (r.actualLeave ? '<div>⏱️ ออกจริง ' + esc(r.actualLeave) + '</div>' : '') +
     (r.actualReturn ? '<div>⏱️ กลับจริง ' + esc(r.actualReturn) + '</div>' : '');
 
   openSheet(banner +
+    (r._bySearch && btn ? '<div class="idcheck">🪪 ไม่ได้สแกน QR — กรุณาตรวจบัตรนักเรียนให้ตรงตัวก่อนบันทึก</div>' : '') +
     '<div class="who"><span class="nm">' + esc(r.studentName) + '</span>' +
       '<span class="tag">' + esc(r.classRoom) + '</span>' +
-      (sid ? '<span class="sid">รหัส ' + esc(sid) + '</span>' : '') + '</div>' +
+      (sid ? '<span class="sid">รหัส ' + esc(sid) + '</span>' : '') +
+      (r.emergency ? '<span class="etag">🆘 ฉุกเฉิน</span>' : '') + '</div>' +
     '<div class="info">' + info + '</div>' + btn +
     '<button class="btn b-gray" onclick="closeSheet()">' + (btn ? '✕ ยกเลิก' : '📷 สแกนคนถัดไป') + '</button>');
 }
@@ -351,30 +410,44 @@ function doScan(type, force){
     found = null;
     openSheet('<div class="banner bn-done"><div class="ico">✅</div><div class="t">บันทึกเรียบร้อย</div>' +
       '<div class="s">' + esc(name) + '<br>' + esc(String(res.message).replace(/^[✅🚶]\s*/, '')) + '</div></div>' +
-      '<button class="btn b-pri big" onclick="closeSheet()">📷 สแกนคนถัดไป</button>');
-    loadOut();
+      '<button class="btn b-pri big" onclick="closeSheet()">📷 คนถัดไป</button>');
+    loadLists();
   }, function(e){
     if (b) { b.disabled = false; b.innerHTML = '🔁 ลองบันทึกอีกครั้ง'; }
     alert('❌ เชื่อมต่อไม่ได้: ' + e);
   });
 }
 
-function loadOut(){
-  var box = document.getElementById('outList');
-  api({action:'currentlyOut'}, function(res){
-    if (!res) return;
-    var list = res.list || [];
-    document.getElementById('outCount').innerText = list.length;
-    if (!list.length) { box.innerHTML = '<div class="empty">✅ ไม่มีนักเรียนอยู่นอกบริเวณ</div>'; return; }
-    var h = '';
-    list.forEach(function(r){
-      h += '<div class="out-item' + (r.late ? ' late' : '') + '">' +
-        '<b>' + esc(r.studentName) + '</b> <span class="tag">' + esc(r.classRoom) + '</span>' + (r.late ? ' ⚠️ เลยเวลา' : '') +
-        '<div class="sub">ออก ' + esc(r.actualLeave) + ' | นัดกลับ ' + esc(r.planReturnTime) + '</div></div>';
-    });
-    box.innerHTML = h;
+/* ---------- รายการรอออก / ยังอยู่นอก ---------- */
+function listHtml(kind, list, emptyText){
+  if (!list.length) return '<div class="empty">' + emptyText + '</div>';
+  return list.map(function(r, i){
+    var sub = kind === 'out'
+      ? 'ออก ' + esc(r.actualLeave) + ' | นัดกลับ ' + esc(r.planReturnTime) + ' น.'
+      : 'ขอออก ' + esc(r.planLeaveTime) + ' น. — ' + esc(r.reasonText);
+    return '<div class="out-item' + (r.late ? ' late' : '') + '" onclick="openFromList(\'' + kind + '\',' + i + ')">' +
+      '<b>' + esc(r.studentName) + '</b> <span class="tag">' + esc(r.classRoom) + '</span>' +
+      (r.emergency ? ' <span class="etag">🆘 ฉุกเฉิน</span>' : '') +
+      (r.late ? ' <span class="etag">⚠️ เลยเวลา</span>' : '') +
+      '<div class="sub">รหัส ' + esc(r.studentId) + ' | ' + sub + '</div>' +
+      '<div class="tap">แตะเพื่อบันทึก ›</div></div>';
+  }).join('');
+}
+
+function loadLists(){
+  api({action:'lists'}, function(res){
+    if (!res || !res.success) {
+      document.getElementById('readyList').innerHTML = '<div class="empty" style="color:#E53935">❌ ' + esc(res ? res.message : '') + '</div>';
+      return;
+    }
+    lists.ready = res.ready || [];
+    lists.out = res.out || [];
+    document.getElementById('readyCount').innerText = lists.ready.length;
+    document.getElementById('outCount').innerText = lists.out.length;
+    document.getElementById('readyList').innerHTML = listHtml('ready', lists.ready, '✅ ไม่มีรายการรอบันทึกออก');
+    document.getElementById('outList').innerHTML = listHtml('out', lists.out, '✅ ไม่มีนักเรียนอยู่นอกบริเวณ');
   }, function(){
-    box.innerHTML = '<div class="empty" style="color:#E53935">❌ เชื่อมต่อไม่ได้</div>';
+    document.getElementById('readyList').innerHTML = '<div class="empty" style="color:#E53935">❌ เชื่อมต่อไม่ได้</div>';
   });
 }
 </script>
