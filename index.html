@@ -97,21 +97,23 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 
 <div class="wrap">
 
-  <div class="card" id="loginBox">
+    <div class="card" id="loginBox">
     <h2 style="color:var(--pri-d);font-size:22px;margin-bottom:4px;">เข้าสู่ระบบ</h2>
     <p class="sub" style="margin-bottom:14px;">สำหรับ ยาม/รปภ. • ครูงานกิจการนักเรียน • หัวหน้างานกิจการนักเรียน</p>
-    <label>เลขประจำตัวประชาชน</label>
-    <input type="text" id="u" inputmode="numeric" placeholder="เลขประจำตัวประชาชน 13 หลัก">
-        <label>รหัสผ่าน</label>
-    <div class="pw">
-      <input type="password" id="p" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
-      <button type="button" class="eye" onclick="togglePw(this)" aria-label="แสดงรหัสผ่าน">👁️</button>
-    </div>
-    <label class="rem">
-      <input type="checkbox" id="rem">
-      <span>จดจำการเข้าสู่ระบบในเครื่องนี้ 30 วัน<br><small>เครื่องประจำป้อมที่ใช้หลายคน — กด "ออก" ทุกครั้งเมื่อเปลี่ยนกะ</small></span>
-    </label>
-    <button class="btn b-pri" onclick="doLogin()">🔐 เข้าสู่ระบบ</button>
+    <form id="loginForm" autocomplete="on" onsubmit="event.preventDefault(); doLogin();">
+      <label for="u">เลขประจำตัวประชาชน</label>
+      <input type="text" id="u" name="username" autocomplete="username" inputmode="numeric" placeholder="เลขประจำตัวประชาชน 13 หลัก">
+      <label for="p">รหัสผ่าน</label>
+      <div class="pw">
+        <input type="password" id="p" name="password" autocomplete="current-password" placeholder="รหัสผ่าน">
+        <button type="button" class="eye" onclick="togglePw(this)" aria-label="แสดงรหัสผ่าน">👁️</button>
+      </div>
+      <label class="rem">
+        <input type="checkbox" id="rem">
+        <span>จดจำการเข้าสู่ระบบในเครื่องนี้ 30 วัน<br><small>เครื่องประจำป้อมที่ใช้หลายคน — กด "ออก" ทุกครั้งเมื่อเปลี่ยนกะ</small></span>
+      </label>
+      <button type="submit" class="btn b-pri">🔐 เข้าสู่ระบบ</button>
+    </form>
     <p class="err" id="loginMsg"></p>
   </div>
 
@@ -178,6 +180,16 @@ function getRem(){
 function setRem(u, t){ localStorage.setItem(REM_KEY, JSON.stringify({ u:u, t:t })); }
 function clearRem(){ localStorage.removeItem(REM_KEY); }
 
+// สั่งให้ Chrome / บัญชี Google ถามบันทึกรหัสผ่าน
+function savePw(u, p, name){
+  try {
+    if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
+      navigator.credentials.store(new PasswordCredential({ id:String(u), password:String(p), name:name || String(u) }))
+        .catch(function(){});
+    }
+  } catch(e){}
+}
+ 
 function togglePw(btn){
   var el = document.getElementById('p');
   var show = el.type === 'password';
@@ -274,6 +286,7 @@ function doLogin(){
     if (remember) localStorage.setItem(LAST_KEY, u); else localStorage.removeItem(LAST_KEY);
     if (remember && res.remember) setRem(u, res.remember); else clearRem();
     delete res.remember;
+       savePw(u, p, res.fullName);
     guard = res;
     localStorage.setItem('guardUser', JSON.stringify(res));
     m.innerText = '';
