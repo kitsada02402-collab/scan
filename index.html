@@ -79,6 +79,13 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 .info a{color:var(--pri-d);font-weight:700;text-decoration:none}
 .spin{width:44px;height:44px;border:5px solid var(--pri-l);border-top-color:var(--pri);border-radius:50%;animation:sp 1s linear infinite;margin:26px auto 10px}
 @keyframes sp{to{transform:rotate(360deg)}}
+ .pw{position:relative}
+.pw input{padding-right:58px}
+.eye{position:absolute;right:6px;top:5px;width:46px;height:42px;border:none;background:transparent;font-size:20px;cursor:pointer;border-radius:10px}
+.eye:active{background:var(--pri-l)}
+.rem{display:flex;align-items:flex-start;gap:10px;font-weight:500;font-size:15px;margin:-2px 0 8px;cursor:pointer;line-height:1.5}
+.rem input{width:22px;height:22px;min-height:0;flex:0 0 22px;margin:2px 0 0;padding:0;accent-color:var(--pri)}
+.rem small{color:var(--mut);font-size:13px}
 </style>
 </head>
 <body>
@@ -95,8 +102,15 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
     <p class="sub" style="margin-bottom:14px;">สำหรับ ยาม/รปภ. • ครูงานกิจการนักเรียน • หัวหน้างานกิจการนักเรียน</p>
     <label>เลขประจำตัวประชาชน</label>
     <input type="text" id="u" inputmode="numeric" placeholder="เลขประจำตัวประชาชน 13 หลัก">
-    <label>รหัสผ่าน</label>
-    <input type="password" id="p" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+        <label>รหัสผ่าน</label>
+    <div class="pw">
+      <input type="password" id="p" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+      <button type="button" class="eye" onclick="togglePw(this)" aria-label="แสดงรหัสผ่าน">👁️</button>
+    </div>
+    <label class="rem">
+      <input type="checkbox" id="rem">
+      <span>จดจำการเข้าสู่ระบบในเครื่องนี้ 30 วัน<br><small>เครื่องประจำป้อมที่ใช้หลายคน — กด "ออก" ทุกครั้งเมื่อเปลี่ยนกะ</small></span>
+    </label>
     <button class="btn b-pri" onclick="doLogin()">🔐 เข้าสู่ระบบ</button>
     <p class="err" id="loginMsg"></p>
   </div>
@@ -154,14 +168,73 @@ function esc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ---------- จดจำการเข้าสู่ระบบ ---------- */
+var REM_KEY = 'guardRemember', LAST_KEY = 'guardLastUser';
+
+function getRem(){
+  try { var v = JSON.parse(localStorage.getItem(REM_KEY) || 'null'); return (v && v.u && v.t) ? v : null; }
+  catch(e){ return null; }
+}
+function setRem(u, t){ localStorage.setItem(REM_KEY, JSON.stringify({ u:u, t:t })); }
+function clearRem(){ localStorage.removeItem(REM_KEY); }
+
+function togglePw(btn){
+  var el = document.getElementById('p');
+  var show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.innerText = show ? '🙈' : '👁️';
+  btn.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
+  el.focus();
+}
+
+// เข้าระบบใหม่ด้วยบัตรผ่าน (ไม่ต้องพิมพ์รหัส)
+function relogin(rm, done){
+  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'remember', username:rm.u, token:rm.t, secret:SECRET }) })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if (res && res.success) {
+        guard = res;
+        localStorage.setItem('guardUser', JSON.stringify(res));
+        done(true);
+      } else {
+        clearRem();
+        done(false);
+      }
+    })
+    .catch(function(){ done(false); });
+}
+
 window.onload = function(){
+  var lu = localStorage.getItem(LAST_KEY);
+  if (lu) {
+    document.getElementById('u').value = lu;
+    document.getElementById('rem').checked = true;
+  }
+
   var s = localStorage.getItem('guardUser');
-  if (!s) return;
-  var g = JSON.parse(s);
-  if (!g.token) { localStorage.removeItem('guardUser'); return; }
-  guard = g;
-  showMain();
+  if (s) {
+    var g = JSON.parse(s);
+    if (g.token) { guard = g; showMain(); return; }
+    localStorage.removeItem('guardUser');
+  }
+
+  var rm = getRem();
+  if (!rm) return;
+  var m = document.getElementById('loginMsg');
+  m.style.color = '#78909C';
+  m.innerText = '⏳ กำลังเข้าสู่ระบบอัตโนมัติ...';
+  relogin(rm, function(ok){
+    m.innerText = '';
+    if (ok) showMain();
+  });
 };
+
+function expiredOut(msg){
+  document.getElementById('sheetBg').classList.remove('show');
+  busy = false;
+  alert(msg);
+  doLogout();
+}
 
 function api(payload, cb, errCb){
   payload.secret = SECRET;
@@ -170,10 +243,17 @@ function api(payload, cb, errCb){
     .then(function(r){ return r.json(); })
     .then(function(res){
       if (res && res.expired) {
-        document.getElementById('sheetBg').classList.remove('show');
-        busy = false;
-        alert(res.message);
-        doLogout();
+        // จดจำไว้ → เข้าใหม่เงียบ ๆ แล้วส่งคำสั่งเดิมซ้ำ 1 ครั้ง
+        var rm = getRem();
+        if (rm && !payload._retried) {
+          relogin(rm, function(ok){
+            if (!ok) { expiredOut(res.message); return; }
+            payload._retried = true;
+            api(payload, cb, errCb);
+          });
+          return;
+        }
+        expiredOut(res.message);
         return;
       }
       cb(res);
@@ -185,13 +265,18 @@ function api(payload, cb, errCb){
 function doLogin(){
   var u = document.getElementById('u').value.trim();
   var p = document.getElementById('p').value.trim();
+  var remember = document.getElementById('rem').checked;
   var m = document.getElementById('loginMsg');
   if (!u || !p) { m.innerText = 'กรุณากรอกให้ครบ'; return; }
   m.style.color = '#78909C'; m.innerText = '⏳ กำลังตรวจสอบ...';
-  api({action:'login', username:u, password:p}, function(res){
+  api({action:'login', username:u, password:p, remember:remember}, function(res){
     if (!res.success) { m.style.color = '#E53935'; m.innerText = res.message; return; }
+    if (remember) localStorage.setItem(LAST_KEY, u); else localStorage.removeItem(LAST_KEY);
+    if (remember && res.remember) setRem(u, res.remember); else clearRem();
+    delete res.remember;
     guard = res;
     localStorage.setItem('guardUser', JSON.stringify(res));
+    m.innerText = '';
     showMain();
   }, function(e){ m.style.color = '#E53935'; m.innerText = '❌ เชื่อมต่อไม่ได้: ' + e; });
 }
@@ -206,14 +291,28 @@ function showMain(){
 }
 
 function doLogout(){
+  var rm = getRem();
+  if (rm) {
+    fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'forget', username:rm.u, token:rm.t, secret:SECRET }) })
+      .catch(function(){});
+    clearRem();
+  }
   stopCam();
   if (outTimer) clearInterval(outTimer);
   localStorage.removeItem('guardUser');
   guard = null;
   document.getElementById('mainBox').style.display = 'none';
   document.getElementById('loginBox').style.display = 'block';
-  document.getElementById('p').value = '';
   document.getElementById('loginMsg').innerText = '';
+
+  var lu = localStorage.getItem(LAST_KEY) || '';
+  document.getElementById('u').value = lu;
+  document.getElementById('rem').checked = !!lu;
+  var pw = document.getElementById('p');
+  pw.value = '';
+  pw.type = 'password';
+  var eye = document.querySelector('.eye');
+  if (eye) eye.innerText = '👁️';
 }
 
 /* ---------- กล้อง ---------- */
