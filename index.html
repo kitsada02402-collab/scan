@@ -92,7 +92,7 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 
 <header class="hero">
   <h1>🚪 จุดตรวจประตู — บันทึกเข้า-ออก</h1>
-  <p>โรงเรียนเซกา จังหวัดบึงกาฬ</p>
+  <p id="schoolLine">โรงเรียนเซกา จังหวัดบึงกาฬ</p>
 </header>
 
 <div class="wrap">
@@ -158,10 +158,45 @@ input:focus{border-color:#64B5F6;background:#fff;box-shadow:0 0 0 4px rgba(100,1
 </div>
 
 <script>
-/* ========== ⚠️ ตรวจ 2 บรรทัดนี้ให้ตรงกับของเดิม ========== */
+/* ========== ค่าตั้งต้น (โรงเรียนเซกา) — ⚠️ ตรวจ 2 บรรทัดนี้ให้ตรงกับของเดิม ========== */
 var API_URL = 'https://script.google.com/macros/s/AKfycbyEoXZ5cO0hgl9D3pnqW1eu0lxby0OSAh62MjvwBIGa_9Y7pgl4C-Zl1JPzsP56qpsFMg/exec';
 var SECRET  = 'seka2569xyz';
-/* ======================================================= */
+/* ================================================================================ */
+
+/* ---------- ตั้งค่าจากลิงก์ที่แอดมินส่งให้ (…/scan/#c=...) ----------
+   เปิดลิงก์ครั้งเดียว เครื่องจะจำที่อยู่ระบบ + รหัสลับ + ชื่อโรงเรียนไว้
+   หน้าเดียวนี้จึงใช้ได้กับทุกโรงเรียนที่ทำสำเนาระบบไป */
+var CFG_KEY = 'gateCfg', CFG = null;
+(function loadCfg(){
+  try { CFG = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch(e){ CFG = null; }
+  var m = location.hash.match(/[#&]c=([A-Za-z0-9_-]+)/);
+  if (m) {
+    try {
+      var b = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      var bin = atob(b), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var c = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+      if (c && c.k && /^https:\/\/script\.google\.com\/\S+\/exec$/.test(c.u)) {
+        if (!CFG || CFG.u !== c.u) {             // เปลี่ยนระบบ → ล้างการเข้าสู่ระบบของระบบเดิม
+          ['guardUser', 'guardRemember', 'guardLastUser'].forEach(function(k){ localStorage.removeItem(k); });
+        }
+        localStorage.setItem(CFG_KEY, JSON.stringify(c));
+        CFG = c;
+      }
+    } catch(e){}
+    history.replaceState(null, '', location.pathname + location.search);   // ซ่อนรหัสลับออกจากแถบที่อยู่
+  }
+  if (CFG && CFG.u && CFG.k) { API_URL = CFG.u; SECRET = CFG.k; }
+})();
+// เปิดลิงก์ตั้งค่าในแท็บที่เปิดหน้านี้อยู่แล้ว → โหลดใหม่ให้ค่าใหม่มีผล
+window.addEventListener('hashchange', function(){ if (/[#&]c=/.test(location.hash)) location.reload(); });
+
+function showSchool(){
+  if (!CFG || !CFG.n) return;
+  document.getElementById('schoolLine').innerText = CFG.n + (CFG.a ? ' ' + CFG.a : '');
+  document.title = 'จุดตรวจประตู - ' + CFG.n;
+}
 
 var guard = null, scanner = null, found = null, busy = false, outTimer = null;
 var lists = { ready: [], out: [], pick: [] };
@@ -217,6 +252,7 @@ function relogin(rm, done){
 }
 
 window.onload = function(){
+  showSchool();
   var lu = localStorage.getItem(LAST_KEY);
   if (lu) {
     document.getElementById('u').value = lu;
@@ -282,7 +318,11 @@ function doLogin(){
   if (!u || !p) { m.innerText = 'กรุณากรอกให้ครบ'; return; }
   m.style.color = '#78909C'; m.innerText = '⏳ กำลังตรวจสอบ...';
   api({action:'login', username:u, password:p, remember:remember}, function(res){
-    if (!res.success) { m.style.color = '#E53935'; m.innerText = res.message; return; }
+    if (!res.success) {
+      m.style.color = '#E53935';
+      m.innerText = res.message + (/รหัสลับ/.test(res.message) ? '\nกรุณาขอ "ลิงก์หน้าสแกนสำหรับเครื่องยาม" จากแอดมินแล้วเปิดใหม่ 1 ครั้ง' : '');
+      return;
+    }
     if (remember) localStorage.setItem(LAST_KEY, u); else localStorage.removeItem(LAST_KEY);
     if (remember && res.remember) setRem(u, res.remember); else clearRem();
     delete res.remember;
